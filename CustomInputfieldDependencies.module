@@ -1,5 +1,7 @@
 <?php namespace ProcessWire;
 
+use ParseError;
+
 class CustomInputfieldDependencies extends WireData implements Module {
 
 	/**
@@ -103,7 +105,7 @@ class CustomInputfieldDependencies extends WireData implements Module {
 		if(!$page->id) $page = $process->getPage();
 
 		// Mainly to make this variable available as $pages in custom PHP
-		$pages = $this->wire()->pages; 
+		$pages = $this->wire()->pages;
 
 		// Evaluate show-if conditions
 		if($field->show_if_custom_find) {
@@ -119,9 +121,20 @@ class CustomInputfieldDependencies extends WireData implements Module {
 			}
 		}
 		if($field->show_if_custom_php) {
-			$result = eval($field->show_if_custom_php);
-			if($result !== true) {
-				$this->hideInputfield($inputfield, $field);
+			try {
+				$result = eval($field->show_if_custom_php);
+				if($result !== true) {
+					$this->hideInputfield($inputfield, $field);
+				}
+			} catch (ParseError $e) {
+				if ($this->wire()->user->isSuperuser()) {
+					$fieldName = $field->name;
+					$error = $e->getMessage();
+
+					$this->wire()->error(
+						"The 'Show only if custom PHP returns true' code provided for field '{$fieldName}' generated an error: {$error}"
+					);
+				}
 			}
 		}
 
